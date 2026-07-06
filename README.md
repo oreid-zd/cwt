@@ -1,10 +1,12 @@
 # cwt
 
 An `fzf`-powered switcher for git worktrees created by Claude Code
-(`.claude/worktrees`), Sandcastle (`.sandcastle/worktrees`), and native git
-(`.worktrees`). Pick a worktree to `cd` into it; preview shows branch, last
-commit, uncommitted changes, and merge status against `origin/<default>` and
-`origin/mvp`. `ctrl-x` deletes a worktree from the picker.
+(`.claude/worktrees`), Sandcastle (`.sandcastle/worktrees` by default), and
+native git (`.worktrees`). Pick a worktree to `cd` into it; preview shows
+branch, last commit, uncommitted changes, and merge status against the default
+branch (plus any extra bases you configure). `ctrl-x` deletes a worktree from
+the picker. Branches, bases, and the sandcastle path are all
+[configurable](#configuration).
 
 ## Requirements
 
@@ -24,8 +26,11 @@ This drops `cwt.sh` into `~/.local/share/cwt/` and adds a `source` line to your
 Pin a version (any tag/branch/SHA):
 
 ```sh
-CWT_REF=v1.0.0 curl -fsSL https://raw.githubusercontent.com/oreid-zd/cwt/v1.0.0/install.sh | sh
+CWT_REF=v1.2.0 curl -fsSL https://raw.githubusercontent.com/oreid-zd/cwt/v1.2.0/install.sh | sh
 ```
+
+See the [releases](https://github.com/oreid-zd/cwt/releases) for available
+versions and their changelogs.
 
 ## Configuration
 
