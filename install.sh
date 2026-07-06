@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 # Install cwt: fetch cwt.sh and add a source line to your shell rc.
-#   curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/oreid-zd/cwt/main/install.sh | sh
 # Override the version (any git ref) with:  CWT_REF=v1.0.0 curl ... | sh
 set -eu
 
-OWNER_REPO="OWNER/REPO"
+OWNER_REPO="oreid-zd/cwt"
 REF="${CWT_REF:-main}"
 DEST_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/cwt"
 DEST="$DEST_DIR/cwt.sh"

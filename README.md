@@ -15,7 +15,7 @@ commit, uncommitted changes, and merge status against `origin/<default>` and
 ## Install
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/oreid-zd/cwt/main/install.sh | sh
 ```
 
 This drops `cwt.sh` into `~/.local/share/cwt/` and adds a `source` line to your
@@ -24,7 +24,7 @@ This drops `cwt.sh` into `~/.local/share/cwt/` and adds a `source` line to your
 Pin a version (any tag/branch/SHA):
 
 ```sh
-CWT_REF=v1.0.0 curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/v1.0.0/install.sh | sh
+CWT_REF=v1.0.0 curl -fsSL https://raw.githubusercontent.com/oreid-zd/cwt/v1.0.0/install.sh | sh
 ```
 
 ## Update

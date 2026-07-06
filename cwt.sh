@@ -1,7 +1,7 @@
 # Claude worktree command
 cwt() {
   if [[ "$1" == "--update" ]]; then
-    curl -fsSL "https://raw.githubusercontent.com/OWNER/REPO/${CWT_REF:-main}/install.sh" | sh
+    curl -fsSL "https://raw.githubusercontent.com/oreid-zd/cwt/${CWT_REF:-main}/install.sh" | sh
     return
   fi
 
