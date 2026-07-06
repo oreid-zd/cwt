@@ -7,3 +7,7 @@
 
 # Extra base branches to fetch and check merge status against, space-separated.
 # CWT_EXTRA_BASES="mvp develop"
+
+# Relative path (from the repo root) of the "sandcastle" worktree dir. The list
+# label is derived from the leading segment (".sandcastle/worktrees" -> "sandcastle").
+# CWT_SANDCASTLE_DIR=".sandcastle/worktrees"

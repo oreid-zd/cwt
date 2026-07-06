@@ -38,6 +38,7 @@ vars take precedence over the file. See [`config.example`](config.example).
 |---|---|---|
 | `CWT_DEFAULT_BRANCH` | Override the default branch (e.g. `master`) | auto-detected |
 | `CWT_EXTRA_BASES` | Extra base branches to fetch + check merge status against, space-separated (e.g. `"mvp develop"`) | none |
+| `CWT_SANDCASTLE_DIR` | Relative path of the "sandcastle" worktree dir; the list label derives from its leading segment | `.sandcastle/worktrees` |
 | `CWT_CONFIG` | Path to the config file | `~/.config/cwt/config` |
 
 ```sh
@@ -61,7 +62,10 @@ Remove the `# cwt` line from your rc and `rm -rf ~/.local/share/cwt`.
 A published version is just a git tag:
 
 ```sh
-git tag v1.1.0 && git push --tags
+git tag v1.2.0 && git push --tags
 ```
 
-Colleagues get it with `CWT_REF=v1.1.0`, or the latest `main` by default.
+Pushing a `v*` tag triggers `.github/workflows/release.yml`, which cuts a
+GitHub Release with auto-generated notes (changelog) from the commits/PRs since
+the previous tag. Colleagues get a version with `CWT_REF=v1.2.0`, or the latest
+`main` by default.

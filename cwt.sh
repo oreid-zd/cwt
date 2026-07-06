@@ -9,19 +9,26 @@ cwt() {
   # file's values for anything not already set in the environment.
   local config_file="${CWT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/cwt/config}"
   if [[ -f "$config_file" ]]; then
-    local _cwt_db="${CWT_DEFAULT_BRANCH:-}" _cwt_xb="${CWT_EXTRA_BASES:-}"
+    local _cwt_db="${CWT_DEFAULT_BRANCH:-}" _cwt_xb="${CWT_EXTRA_BASES:-}" _cwt_sc="${CWT_SANDCASTLE_DIR:-}"
     source "$config_file"
     [[ -n "$_cwt_db" ]] && CWT_DEFAULT_BRANCH="$_cwt_db"
     [[ -n "$_cwt_xb" ]] && CWT_EXTRA_BASES="$_cwt_xb"
+    [[ -n "$_cwt_sc" ]] && CWT_SANDCASTLE_DIR="$_cwt_sc"
   fi
+
+  # Relative path of the "sandcastle" worktree dir; the label shown in the list
+  # is derived from its leading path segment (".sandcastle/worktrees" -> "sandcastle").
+  local sandcastle_rel="${CWT_SANDCASTLE_DIR:-.sandcastle/worktrees}"
+  local sandcastle_label="${sandcastle_rel%%/*}"
+  sandcastle_label="${sandcastle_label#.}"
 
   local cwd=$(pwd)
   local repo_root
 
   if [[ "$cwd" == *"/.claude/worktrees/"* ]]; then
     repo_root="${cwd%%/.claude/worktrees/*}"
-  elif [[ "$cwd" == *"/.sandcastle/worktrees/"* ]]; then
-    repo_root="${cwd%%/.sandcastle/worktrees/*}"
+  elif [[ "$cwd" == *"/$sandcastle_rel/"* ]]; then
+    repo_root="${cwd%%/$sandcastle_rel/*}"
   elif [[ "$cwd" == *"/.worktrees/"* ]]; then
     repo_root="${cwd%%/.worktrees/*}"
   else
@@ -48,7 +55,7 @@ cwt() {
   root_branch=${root_branch:-$default_branch}
 
   local claude_wt_dir="$repo_root/.claude/worktrees"
-  local sandcastle_wt_dir="$repo_root/.sandcastle/worktrees"
+  local sandcastle_wt_dir="$repo_root/$sandcastle_rel"
   local root_wt_dir="$repo_root/.worktrees"
 
   if [[ ! -d "$claude_wt_dir" ]] && [[ ! -d "$sandcastle_wt_dir" ]] && [[ ! -d "$root_wt_dir" ]]; then
@@ -142,7 +149,7 @@ cwt() {
     for wt in $(ls -1 "'"$sandcastle_wt_dir"'" 2>/dev/null); do
       [ -d "'"$claude_wt_dir"'/$wt" ] && continue
       branch=$(git -C "'"$sandcastle_wt_dir"'/$wt" branch --show-current 2>/dev/null)
-      printf "%s \033[35m[sandcastle]\033[0m \033[2m%s\033[0m\n" "$wt" "${branch:-detached}"
+      printf "%s \033[35m['"$sandcastle_label"']\033[0m \033[2m%s\033[0m\n" "$wt" "${branch:-detached}"
     done
     for wt in $(ls -1 "'"$root_wt_dir"'" 2>/dev/null); do
       { [ -d "'"$claude_wt_dir"'/$wt" ] || [ -d "'"$sandcastle_wt_dir"'/$wt" ]; } && continue
