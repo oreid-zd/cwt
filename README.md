@@ -27,6 +27,25 @@ Pin a version (any tag/branch/SHA):
 CWT_REF=v1.0.0 curl -fsSL https://raw.githubusercontent.com/oreid-zd/cwt/v1.0.0/install.sh | sh
 ```
 
+## Configuration
+
+Everything works with zero config — the default branch is auto-detected from
+`origin/HEAD`. To customise, set env vars in your shell or drop them in a
+config file at `~/.config/cwt/config` (or point `CWT_CONFIG` elsewhere). Env
+vars take precedence over the file. See [`config.example`](config.example).
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `CWT_DEFAULT_BRANCH` | Override the default branch (e.g. `master`) | auto-detected |
+| `CWT_EXTRA_BASES` | Extra base branches to fetch + check merge status against, space-separated (e.g. `"mvp develop"`) | none |
+| `CWT_CONFIG` | Path to the config file | `~/.config/cwt/config` |
+
+```sh
+mkdir -p ~/.config/cwt
+curl -fsSL https://raw.githubusercontent.com/oreid-zd/cwt/main/config.example -o ~/.config/cwt/config
+# then edit ~/.config/cwt/config
+```
+
 ## Update
 
 ```sh

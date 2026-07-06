@@ -1,0 +1,9 @@
+# cwt config — copy to ~/.config/cwt/config (or set CWT_CONFIG to point elsewhere).
+# Anything you set in your shell env overrides these values.
+
+# Override the default branch. Leave unset to auto-detect from origin/HEAD
+# (falls back to the current branch, then "main").
+# CWT_DEFAULT_BRANCH=master
+
+# Extra base branches to fetch and check merge status against, space-separated.
+# CWT_EXTRA_BASES="mvp develop"

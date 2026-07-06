@@ -5,6 +5,16 @@ cwt() {
     return
   fi
 
+  # Optional config file. Shell env vars take precedence, so only apply the
+  # file's values for anything not already set in the environment.
+  local config_file="${CWT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/cwt/config}"
+  if [[ -f "$config_file" ]]; then
+    local _cwt_db="${CWT_DEFAULT_BRANCH:-}" _cwt_xb="${CWT_EXTRA_BASES:-}"
+    source "$config_file"
+    [[ -n "$_cwt_db" ]] && CWT_DEFAULT_BRANCH="$_cwt_db"
+    [[ -n "$_cwt_xb" ]] && CWT_EXTRA_BASES="$_cwt_xb"
+  fi
+
   local cwd=$(pwd)
   local repo_root
 
@@ -18,10 +28,20 @@ cwt() {
     repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Not in a git repo"; return 1; }
   fi
 
-  local default_branch
-  default_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
-  default_branch=${default_branch:-$(git -C "$repo_root" branch --show-current 2>/dev/null)}
-  default_branch=${default_branch:-main}
+  local default_branch="${CWT_DEFAULT_BRANCH:-}"
+  if [[ -z "$default_branch" ]]; then
+    default_branch=$(git -C "$repo_root" symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+    default_branch=${default_branch:-$(git -C "$repo_root" branch --show-current 2>/dev/null)}
+    default_branch=${default_branch:-main}
+  fi
+
+  # Bases to compare worktrees against: the default branch plus any extras
+  # (space-separated) from CWT_EXTRA_BASES, e.g. "mvp develop".
+  local origin_bases="origin/$default_branch"
+  local extra
+  for extra in $(echo ${CWT_EXTRA_BASES:-}); do
+    origin_bases="$origin_bases origin/$extra"
+  done
 
   local root_branch
   root_branch=$(git -C "$repo_root" branch --show-current 2>/dev/null)
@@ -45,10 +65,11 @@ cwt() {
   if [[ -z "$(find "$fetch_stamp" -mmin -5 2>/dev/null)" ]] && [[ ! -f "$fetch_lock" ]]; then
     touch "$fetch_lock"
     (
-      git -C "$repo_root" fetch -q --prune origin "$default_branch" mvp 2>/dev/null
+      git -C "$repo_root" fetch -q --prune origin "$default_branch" $(echo ${CWT_EXTRA_BASES:-}) 2>/dev/null
       touch "$fetch_stamp"
       rm -f "$fetch_lock"
-    ) &|
+    ) &
+    disown 2>/dev/null
   fi
 
   local preview_cmd='
@@ -90,7 +111,7 @@ cwt() {
       echo ""
 
       [[ -f "'"$fetch_lock"'" ]] && echo "⏳ fetching latest from origin…"
-      for base in "origin/'"$default_branch"'" "origin/mvp"; do
+      for base in '"$origin_bases"'; do
         git -C "$dir" rev-parse --verify -q "$base" >/dev/null || continue
         if [[ -z "$branch" ]]; then
           :
@@ -139,7 +160,7 @@ cwt() {
     [ -d "$dir" ] || exit 0
     branch=$(git -C "$dir" branch --show-current 2>/dev/null)
     merged=""
-    for base in "origin/'"$default_branch"'" "origin/mvp"; do
+    for base in '"$origin_bases"'; do
       git -C "$dir" rev-parse --verify -q "$base" >/dev/null || continue
       [ -z "$branch" ] && continue
       if git -C "$dir" merge-base --is-ancestor HEAD "$base" 2>/dev/null; then
