@@ -1,12 +1,15 @@
 # cwt
 
-An `fzf`-powered switcher for git worktrees created by Claude Code
-(`.claude/worktrees`), Sandcastle (`.sandcastle/worktrees` by default), and
-native git (`.worktrees`). Pick a worktree to `cd` into it; preview shows
-branch, last commit, uncommitted changes, and merge status against the default
-branch (plus any extra bases you configure). `ctrl-x` deletes a worktree from
-the picker. Branches, bases, and the sandcastle path are all
-[configurable](#configuration).
+An `fzf`-powered switcher for git worktrees. Out of the box it scans Claude
+Code worktrees (`.claude/worktrees`) and native git worktrees (`.worktrees`).
+Pick one to `cd` into it; the preview shows branch, last commit, uncommitted
+changes, and merge status against the default branch. `ctrl-x` deletes a
+worktree from the picker.
+
+Everything Zendesk- or user-specific is opt-in via env vars: point
+`CWT_EXTRA_DIRS` at extra worktree dirs (e.g. Sandcastle's
+`.sandcastle/worktrees`), add `CWT_EXTRA_BASES` for extra merge targets, or
+override the default branch. See [Configuration](#configuration).
 
 ## Requirements
 
@@ -43,8 +46,11 @@ vars take precedence over the file. See [`config.example`](config.example).
 |---|---|---|
 | `CWT_DEFAULT_BRANCH` | Override the default branch (e.g. `master`) | auto-detected |
 | `CWT_EXTRA_BASES` | Extra base branches to fetch + check merge status against, space-separated (e.g. `"mvp develop"`) | none |
-| `CWT_SANDCASTLE_DIR` | Relative path of the "sandcastle" worktree dir; the list label derives from its leading segment | `.sandcastle/worktrees` |
+| `CWT_EXTRA_DIRS` | Extra worktree dirs to scan on top of the defaults, space-separated, repo-relative (e.g. `".sandcastle/worktrees"`); each label derives from its leading segment | none |
 | `CWT_CONFIG` | Path to the config file | `~/.config/cwt/config` |
+
+The default worktree dirs (`.claude/worktrees`, `.worktrees`) are always
+scanned; `CWT_EXTRA_DIRS` only adds to them.
 
 ```sh
 mkdir -p ~/.config/cwt

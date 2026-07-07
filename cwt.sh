@@ -9,29 +9,32 @@ cwt() {
   # file's values for anything not already set in the environment.
   local config_file="${CWT_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/cwt/config}"
   if [[ -f "$config_file" ]]; then
-    local _cwt_db="${CWT_DEFAULT_BRANCH:-}" _cwt_xb="${CWT_EXTRA_BASES:-}" _cwt_sc="${CWT_SANDCASTLE_DIR:-}"
+    local _cwt_db="${CWT_DEFAULT_BRANCH:-}" _cwt_xb="${CWT_EXTRA_BASES:-}" _cwt_ed="${CWT_EXTRA_DIRS:-}"
     source "$config_file"
     [[ -n "$_cwt_db" ]] && CWT_DEFAULT_BRANCH="$_cwt_db"
     [[ -n "$_cwt_xb" ]] && CWT_EXTRA_BASES="$_cwt_xb"
-    [[ -n "$_cwt_sc" ]] && CWT_SANDCASTLE_DIR="$_cwt_sc"
+    [[ -n "$_cwt_ed" ]] && CWT_EXTRA_DIRS="$_cwt_ed"
   fi
 
-  # Relative path of the "sandcastle" worktree dir; the label shown in the list
-  # is derived from its leading path segment (".sandcastle/worktrees" -> "sandcastle").
-  local sandcastle_rel="${CWT_SANDCASTLE_DIR:-.sandcastle/worktrees}"
-  local sandcastle_label="${sandcastle_rel%%/*}"
-  sandcastle_label="${sandcastle_label#.}"
+  # Worktree dirs to scan (relative to the repo root), in precedence order.
+  # Defaults are .claude/worktrees and .worktrees; add more (space-separated)
+  # via CWT_EXTRA_DIRS, e.g. ".sandcastle/worktrees .wt". Each list label is
+  # derived from the dir's leading path segment (.worktrees stays "native").
+  local wt_rels=".claude/worktrees .worktrees"
+  local _ed
+  for _ed in $(echo ${CWT_EXTRA_DIRS:-}); do
+    wt_rels="$wt_rels $_ed"
+  done
 
   local cwd=$(pwd)
-  local repo_root
-
-  if [[ "$cwd" == *"/.claude/worktrees/"* ]]; then
-    repo_root="${cwd%%/.claude/worktrees/*}"
-  elif [[ "$cwd" == *"/$sandcastle_rel/"* ]]; then
-    repo_root="${cwd%%/$sandcastle_rel/*}"
-  elif [[ "$cwd" == *"/.worktrees/"* ]]; then
-    repo_root="${cwd%%/.worktrees/*}"
-  else
+  local repo_root="" _rel
+  for _rel in $(echo $wt_rels); do
+    if [[ "$cwd" == *"/$_rel/"* ]]; then
+      repo_root="${cwd%%/$_rel/*}"
+      break
+    fi
+  done
+  if [[ -z "$repo_root" ]]; then
     repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Not in a git repo"; return 1; }
   fi
 
@@ -54,12 +57,12 @@ cwt() {
   root_branch=$(git -C "$repo_root" branch --show-current 2>/dev/null)
   root_branch=${root_branch:-$default_branch}
 
-  local claude_wt_dir="$repo_root/.claude/worktrees"
-  local sandcastle_wt_dir="$repo_root/$sandcastle_rel"
-  local root_wt_dir="$repo_root/.worktrees"
-
-  if [[ ! -d "$claude_wt_dir" ]] && [[ ! -d "$sandcastle_wt_dir" ]] && [[ ! -d "$root_wt_dir" ]]; then
-    echo "No worktrees found at $claude_wt_dir, $sandcastle_wt_dir, or $root_wt_dir"
+  local any_dir=0
+  for _rel in $(echo $wt_rels); do
+    [[ -d "$repo_root/$_rel" ]] && any_dir=1
+  done
+  if [[ $any_dir -eq 0 ]]; then
+    echo "No worktrees found under: ${wt_rels// /, } (in $repo_root)"
     return 1
   fi
 
@@ -79,27 +82,57 @@ cwt() {
     disown 2>/dev/null
   fi
 
+  # Build the per-dir fzf snippets (list rows, preview + delete dir-resolution)
+  # from the dir list. These run inside fzf's shell, so absolute paths are
+  # spliced in now while $item/$wt/$branch stay literal for runtime expansion.
+  local list_body="" preview_chain="" del_chain="" guard="" this_term
+  local absdir lbl color
+  for _rel in $(echo $wt_rels); do
+    absdir="$repo_root/$_rel"
+    lbl="${_rel%%/*}"; lbl="${lbl#.}"
+    [[ "$_rel" == ".worktrees" ]] && lbl="native"
+    case "$lbl" in
+      claude) color=36 ;;   # cyan
+      native) color=33 ;;   # yellow
+      *)      color=35 ;;   # magenta (all extra dirs)
+    esac
+
+    local block='
+    for wt in $(ls -1 "'"$absdir"'" 2>/dev/null); do'
+    if [[ -n "$guard" ]]; then
+      block="$block"'
+      { '"$guard"'; } && continue'
+    fi
+    block="$block"'
+      branch=$(git -C "'"$absdir"'/$wt" branch --show-current 2>/dev/null)
+      printf "%s \033['"$color"'m['"$lbl"']\033[0m \033[2m%s\033[0m\n" "$wt" "${branch:-detached}"
+    done'
+    list_body="$list_body$block"
+
+    this_term='[ -d "'"$absdir"'/$wt" ]'
+    if [[ -n "$guard" ]]; then guard="$guard || $this_term"; else guard="$this_term"; fi
+
+    preview_chain="$preview_chain"'
+    elif [[ -d "'"$absdir"'/$item" ]]; then
+      dir="'"$absdir"'/$item"
+      echo "📁 $item"
+      echo "───────────────────────────────"'
+
+    del_chain="$del_chain"'
+    elif [ -d "'"$absdir"'/$item" ]; then dir="'"$absdir"'/$item"'
+  done
+
   local preview_cmd='
     item={1}
     if [[ "$item" == "  '"$root_branch"'" ]]; then
       echo "📁 '"$root_branch"'"
       echo "───────────────────────────────"
-      dir="'"$repo_root"'"
-    elif [[ -d "'"$claude_wt_dir"'/$item" ]]; then
-      dir="'"$claude_wt_dir"'/$item"
-      echo "📁 $item"
-      echo "───────────────────────────────"
-    elif [[ -d "'"$sandcastle_wt_dir"'/$item" ]]; then
-      dir="'"$sandcastle_wt_dir"'/$item"
-      echo "📁 $item"
-      echo "───────────────────────────────"
+      dir="'"$repo_root"'"'"$preview_chain"'
     else
-      dir="'"$root_wt_dir"'/$item"
-      echo "📁 $item"
-      echo "───────────────────────────────"
+      dir=""
     fi
 
-    if git -C "$dir" rev-parse --git-dir &>/dev/null; then
+    if [[ -n "$dir" ]] && git -C "$dir" rev-parse --git-dir &>/dev/null; then
       branch=$(git -C "$dir" branch --show-current 2>/dev/null)
       echo "🌿 branch: ${branch:-detached}"
       echo ""
@@ -137,33 +170,18 @@ cwt() {
 
     echo ""
     echo "🕐 last modified:"
-    stat -f "  %Sm" -t "%Y-%m-%d %H:%M" "$dir" 2>/dev/null || stat --format="  %y" "$dir" 2>/dev/null | cut -d. -f1
+    [[ -n "$dir" ]] && { stat -f "  %Sm" -t "%Y-%m-%d %H:%M" "$dir" 2>/dev/null || stat --format="  %y" "$dir" 2>/dev/null | cut -d. -f1; }
   '
 
   local list_cmd='
-    echo "  '"$root_branch"'"
-    for wt in $(ls -1 "'"$claude_wt_dir"'" 2>/dev/null); do
-      branch=$(git -C "'"$claude_wt_dir"'/$wt" branch --show-current 2>/dev/null)
-      printf "%s \033[36m[claude]\033[0m \033[2m%s\033[0m\n" "$wt" "${branch:-detached}"
-    done
-    for wt in $(ls -1 "'"$sandcastle_wt_dir"'" 2>/dev/null); do
-      [ -d "'"$claude_wt_dir"'/$wt" ] && continue
-      branch=$(git -C "'"$sandcastle_wt_dir"'/$wt" branch --show-current 2>/dev/null)
-      printf "%s \033[35m['"$sandcastle_label"']\033[0m \033[2m%s\033[0m\n" "$wt" "${branch:-detached}"
-    done
-    for wt in $(ls -1 "'"$root_wt_dir"'" 2>/dev/null); do
-      { [ -d "'"$claude_wt_dir"'/$wt" ] || [ -d "'"$sandcastle_wt_dir"'/$wt" ]; } && continue
-      branch=$(git -C "'"$root_wt_dir"'/$wt" branch --show-current 2>/dev/null)
-      printf "%s \033[33m[native]\033[0m \033[2m%s\033[0m\n" "$wt" "${branch:-detached}"
-    done
+    echo "  '"$root_branch"'"'"$list_body"'
   '
 
   local delete_cmd='
     item={1}
-    [ "$item" = "'"$root_branch"'" ] && exit 0
-    if [ -d "'"$claude_wt_dir"'/$item" ]; then dir="'"$claude_wt_dir"'/$item"
-    elif [ -d "'"$sandcastle_wt_dir"'/$item" ]; then dir="'"$sandcastle_wt_dir"'/$item"
-    else dir="'"$root_wt_dir"'/$item"; fi
+    dir=""
+    if [ "$item" = "'"$root_branch"'" ]; then exit 0'"$del_chain"'
+    fi
     [ -d "$dir" ] || exit 0
     branch=$(git -C "$dir" branch --show-current 2>/dev/null)
     merged=""
@@ -204,13 +222,16 @@ cwt() {
 
   selection="${selection%% *}"
 
-  if [[ "$selection" == "" || "$selection" == " " ]]; then
+  if [[ -z "$selection" || "$selection" == " " ]]; then
     cd "$repo_root"
-  elif [[ -d "$claude_wt_dir/$selection" ]]; then
-    cd "$claude_wt_dir/$selection"
-  elif [[ -d "$sandcastle_wt_dir/$selection" ]]; then
-    cd "$sandcastle_wt_dir/$selection"
   else
-    cd "$root_wt_dir/$selection"
+    local target="$repo_root"
+    for _rel in $(echo $wt_rels); do
+      if [[ -d "$repo_root/$_rel/$selection" ]]; then
+        target="$repo_root/$_rel/$selection"
+        break
+      fi
+    done
+    cd "$target"
   fi
 }
